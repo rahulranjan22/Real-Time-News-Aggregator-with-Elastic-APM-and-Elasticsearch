@@ -1,0 +1,35 @@
+services:
+  news_aggregator:
+    build:
+      context: ./news_aggregator
+      dockerfile: Dockerfile.news_aggregator
+    container_name: news_aggregator
+    environment:
+      NEWS_API_KEY: ''
+      ELASTICSEARCH_HOST: ''
+      ELASTICSEARCH_USERNAME: ''
+      ELASTICSEARCH_PASSWORD: ''
+      ELASTIC_APM_SERVER_URL: ''
+      ELASTIC_APM_SECRET_TOKEN: ''
+      ELASTIC_APM_SERVICE_NAME: 'rranjan-news-aggregator'
+      ELASTIC_APM_ENVIRONMENT: 'php'
+    restart: always
+
+  flask_ui:
+    build:
+      context: ./flask_ui
+      dockerfile: Dockerfile.ui
+    container_name: flask_ui
+    ports:
+      - "5001:5001"
+    environment:
+      ELASTICSEARCH_HOST: ''
+      ELASTICSEARCH_USERNAME: ''
+      ELASTICSEARCH_PASSWORD: ''
+      ELASTIC_APM_SERVER_URL: ''
+      ELASTIC_APM_SECRET_TOKEN: ''
+      ELASTIC_APM_SERVICE_NAME: 'rranjan-flask-ui'
+      ELASTIC_APM_ENVIRONMENT: 'php'
+    depends_on:
+      - news_aggregator
+    restart: always

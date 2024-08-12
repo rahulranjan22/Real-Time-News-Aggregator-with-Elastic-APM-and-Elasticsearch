@@ -1,0 +1,29 @@
+# Use the official Python image
+FROM python:3.9-slim
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy the requirements file into the container
+COPY requirements.txt .
+
+# Install the required Python packages including Elastic APM
+RUN pip install --no-cache-dir -r requirements.txt elastic-apm
+
+# Copy the rest of the application code into the container
+COPY . .
+
+# Set environment variables for Elasticsearch
+ENV ELASTICSEARCH_HOST=''
+ENV ELASTICSEARCH_USERNAME=''
+ENV ELASTICSEARCH_PASSWORD=''
+ENV ELASTIC_APM_SERVER_URL=''
+ENV ELASTIC_APM_SECRET_TOKEN=''
+ENV ELASTIC_APM_SERVICE_NAME='rranjan-flask-ui'
+ENV ELASTIC_APM_ENVIRONMENT='php'
+
+# Expose the port Flask runs on
+EXPOSE 5001
+
+# Run the Flask application
+CMD ["flask", "run", "--host=0.0.0.0", "--port=5001"]

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Aggregator DEMO</title>
+    <style>
+        /* Your existing styles */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #ff6f61, #d30d0d);
+            color: rgb(226, 237, 232);
+        }
+
+        .container {
+            width: 80%;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            text-align: center;
+            color: #daff1e;
+            margin-bottom: 20px;
+            font-size: 2em;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .news-item {
+            border-bottom: 1px solid #e1e1e1;
+            padding: 15px 0;
+            transition: background-color 0.3s ease;
+        }
+
+        .news-item:hover {
+            background-color: #f1f1f1;
+        }
+
+        .news-item h2 {
+            margin: 0;
+            color: #333;
+            font-size: 1.5em;
+        }
+
+        .news-item a {
+            color: #1e90ff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .news-item a:hover {
+            text-decoration: underline;
+        }
+
+        .news-item p {
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .pagination {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .pagination button {
+            padding: 12px 25px;
+            margin: 0 10px;
+            border: none;
+            background-color: #1e90ff;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .pagination button:hover {
+            background-color: #4682b4;
+        }
+
+        .pagination button:disabled {
+            background-color: #b0c4de;
+            cursor: not-allowed;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px 0;
+            background-color: #fff;
+            border-top: 1px solid #e1e1e1;
+            border-radius: 0 0 10px 10px;
+        }
+
+        footer p {
+            margin: 0;
+            color: #333;
+            font-size: 1em;
+        }
+
+        footer a {
+            color: #1e90ff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Latest News - Data Streaming from Elasticsearch and refreshed Per Minute</h1>
+        <div id="news-container"></div>
+        <div class="pagination">
+            <button id="prev-page" onclick="changePage(-1)" disabled>Previous Page</button>
+            <button id="next-page" onclick="changePage(1)">Next Page</button>
+        </div>
+    </div>
+    <footer>
+        <p><a href="https://www.linkedin.com/in/rahul-ranjan-b86b7315/" target="_blank">© 2024 Rahul Ranjan</a></p>
+    </footer>
+
+    <!-- Elastic APM RUM Agent Configuration -->
+    <script>
+        function handleScriptError() {
+            console.error('Failed to load Elastic APM RUM agent script.');
+        }
+
+        function initializeApm() {
+            if (window.elasticApm) {
+                window.elasticApm.init({
+                    serviceName: 'rranjan_stream_news',
+                    serverUrl: '',
+                    secretToken: '',
+                    environment: 'news'
+                });
+                console.log('Elastic APM RUM initialized.');
+            } else {
+                console.error('Elastic APM RUM agent not loaded.');
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@elastic/apm-rum@5.9.0/dist/bundles/elastic-apm-rum.umd.min.js"
+        onload="initializeApm()" onerror="handleScriptError()"></script>
+
+    <script>
+        const resultsPerPage = 10;
+        let currentPage = 0;
+        let totalResults = 0;
+
+        async function fetchNews(page) {
+            try {
+                const response = await fetch(`/news?page=${page}&size=${resultsPerPage}`);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const news = await response.json();
+                totalResults = news.length;
+                const newsContainer = document.getElementById('news-container');
+                newsContainer.innerHTML = news.map(article => `
+                    <div class="news-item">
+                        <h2><a href="${article.url}" target="_blank">${article.title}</a></h2>
+                        <p>${article.description || 'No description available'}</p>
+                        <p><em>Published at: ${new Date(article.timestamp).toLocaleString()}</em></p>
+                    </div>
+                `).join('');
+                updatePaginationControls();
+            } catch (error) {
+                console.error('Failed to fetch news:', error);
+            }
+        }
+
+        function updatePaginationControls() {
+            document.getElementById('prev-page').disabled = currentPage <= 0;
+            document.getElementById('next-page').disabled = totalResults < resultsPerPage;
+        }
+
+        function changePage(direction) {
+            currentPage += direction;
+            fetchNews(currentPage);
+        }
+
+        // Initial fetch
+        fetchNews(currentPage);
+
+        // Auto-refresh every 60 seconds
+        setInterval(() => {
+            location.reload();
+        }, 60000);
+    </script>
+</body>
+
+</html>
