@@ -1,0 +1,2 @@
+# Real-Time-News-Aggregator-with-Elastic-APM-and-Elasticsearch
+Project builds real-time news platform. Fetches articles from NewsAPI, indexes on Elasticsearch, displays on Flask UI. Uses Docker for containerization, APM &amp; RUM for monitoring, integrated into observability dashboard.
