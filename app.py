@@ -55,5 +55,54 @@ def get_news():
     articles = [hit['_source'] for hit in response['hits']['hits']]
     return jsonify(articles)
 
+@app.route('/search-news')
+def search_news():
+    query_term = request.args.get('query', '')
+    page = int(request.args.get('page', 0))
+    size = int(request.args.get('size', 100))
+    
+    query = {
+        "query": {
+            "multi_match": {
+                "query": query_term,
+                "fields": ["title", "description", "content", "author", "category", "source"]
+            }
+        },
+        "sort": [
+            {
+                "timestamp": {
+                    "order": "desc"
+                }
+            }
+        ],
+        "from": page * size,
+        "size": size
+    }
+    
+    response = es.search(index="news", body=query)
+    articles = [hit['_source'] for hit in response['hits']['hits']]
+    return jsonify(articles)
+
+@app.route('/search-suggestions')
+def search_suggestions():
+    query_term = request.args.get('query', '')
+    
+    # Use the completion suggester to get autocomplete suggestions
+    query = {
+        "suggest": {
+            "news-suggest": {
+                "prefix": query_term,
+                "completion": {
+                    "field": "suggest"
+                }
+            }
+        }
+    }
+    
+    response = es.search(index="news", body=query)
+    suggestions = [suggestion['text'] for suggestion in response.get('suggest', {}).get('news-suggest', [{}])[0].get('options', [])]
+    
+    return jsonify(suggestions)
+
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5001, debug=True)
