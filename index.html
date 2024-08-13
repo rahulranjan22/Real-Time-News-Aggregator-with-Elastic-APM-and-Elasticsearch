@@ -26,10 +26,60 @@
 
         h1 {
             text-align: center;
-            color: #daff1e;
+            color: #ff961e;
             margin-bottom: 20px;
             font-size: 2em;
             text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .search-bar {
+            text-align: center;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .search-bar input {
+            padding: 10px;
+            width: 70%;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        .search-bar button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            background-color: #1e90ff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .search-bar button:hover {
+            background-color: #4682b4;
+        }
+
+        .autocomplete-suggestions {
+            position: absolute;
+            width: 70%;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 1000;
+            border-radius: 5px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .autocomplete-suggestions div {
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        .autocomplete-suggestions div:hover {
+            background-color: #f1f1f1;
         }
 
         .news-item {
@@ -45,7 +95,8 @@
         .news-item h2 {
             margin: 0;
             color: #333;
-            font-size: 1.5em;
+            font-size: 1.2em;
+            /* Reduced font size for the title */
         }
 
         .news-item a {
@@ -58,9 +109,14 @@
             text-decoration: underline;
         }
 
-        .news-item p {
+        .news-item .details {
+            font-size: 0.9em;
             color: #555;
-            line-height: 1.6;
+            margin: 10px 0;
+        }
+
+        .news-item .details span {
+            margin-right: 15px;
         }
 
         .pagination {
@@ -118,7 +174,15 @@
 
 <body>
     <div class="container">
-        <h1>Latest News - Data Streaming from Elasticsearch and refreshed Per Minute</h1>
+        <h1>Latest News - Data Streaming from Elasticsearch</h1>
+
+        <div class="search-bar">
+            <input type="text" id="search-input" placeholder="Search for news..." oninput="predictiveSearch()"
+                onkeydown="handleKeyDown(event)">
+            <button onclick="searchNews()">Search</button>
+            <div id="suggestions" class="autocomplete-suggestions"></div>
+        </div>
+
         <div id="news-container"></div>
         <div class="pagination">
             <button id="prev-page" onclick="changePage(-1)" disabled>Previous Page</button>
@@ -152,10 +216,12 @@
     <script src="https://cdn.jsdelivr.net/npm/@elastic/apm-rum@5.9.0/dist/bundles/elastic-apm-rum.umd.min.js"
         onload="initializeApm()" onerror="handleScriptError()"></script>
 
+    <!-- Script with news fetching logic -->
     <script>
         const resultsPerPage = 10;
         let currentPage = 0;
         let totalResults = 0;
+        let searchTimeout = null;
 
         async function fetchNews(page) {
             try {
@@ -169,13 +235,80 @@
                 newsContainer.innerHTML = news.map(article => `
                     <div class="news-item">
                         <h2><a href="${article.url}" target="_blank">${article.title}</a></h2>
-                        <p>${article.description || 'No description available'}</p>
-                        <p><em>Published at: ${new Date(article.timestamp).toLocaleString()}</em></p>
+                        <div class="details">
+                            <span>Author: ${article.author}</span>
+                            <span>Category: ${article.category}</span>
+                            <span><em>Published at: ${new Date(article.timestamp).toLocaleString()}</em></span>
+                        </div>
                     </div>
                 `).join('');
                 updatePaginationControls();
             } catch (error) {
                 console.error('Failed to fetch news:', error);
+            }
+        }
+
+        async function searchNews() {
+            const query = document.getElementById('search-input').value;
+            currentPage = 0;
+            try {
+                const response = await fetch(`/search-news?query=${query}&page=${currentPage}&size=${resultsPerPage}`);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const news = await response.json();
+                totalResults = news.length;
+                const newsContainer = document.getElementById('news-container');
+                newsContainer.innerHTML = news.map(article => `
+                    <div class="news-item">
+                        <h2><a href="${article.url}" target="_blank">${article.title}</a></h2>
+                        <div class="details">
+                            <span>Author: ${article.author}</span>
+                            <span>Category: ${article.category}</span>
+                            <span><em>Published at: ${new Date(article.timestamp).toLocaleString()}</em></span>
+                        </div>
+                    </div>
+                `).join('');
+                updatePaginationControls();
+            } catch (error) {
+                console.error('Failed to search news:', error);
+            }
+        }
+
+        async function predictiveSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                const query = document.getElementById('search-input').value;
+                if (query.length > 2) {
+                    try {
+                        const response = await fetch(`/search-suggestions?query=${query}`);
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        const suggestions = await response.json();
+                        const suggestionsContainer = document.getElementById('suggestions');
+                        suggestionsContainer.innerHTML = suggestions.map(suggestion => `
+                            <div onclick="selectSuggestion('${suggestion}')">${suggestion}</div>
+                        `).join('');
+                        suggestionsContainer.style.display = 'block';
+                    } catch (error) {
+                        console.error('Failed to fetch suggestions:', error);
+                    }
+                } else {
+                    document.getElementById('suggestions').style.display = 'none';
+                }
+            }, 300); // 300ms debounce
+        }
+
+        function selectSuggestion(suggestion) {
+            document.getElementById('search-input').value = suggestion;
+            document.getElementById('suggestions').style.display = 'none';
+            searchNews();
+        }
+
+        function handleKeyDown(event) {
+            if (event.key === 'Enter') {
+                searchNews();
             }
         }
 
@@ -186,7 +319,12 @@
 
         function changePage(direction) {
             currentPage += direction;
-            fetchNews(currentPage);
+            const query = document.getElementById('search-input').value;
+            if (query) {
+                searchNews();
+            } else {
+                fetchNews(currentPage);
+            }
         }
 
         // Initial fetch
